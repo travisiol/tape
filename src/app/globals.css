@@ -1,0 +1,242 @@
+@import "tailwindcss";
+
+/* TAPE design tokens. The accent is a fill colour only (rails, pills, buttons with ink text), never text on paper. */
+:root {
+  --paper: #faf7ef;
+  --surface: #ffffff;
+  --ink: #11110f;
+  --muted: #6e6a61;
+  --accent: #f2b705;
+  --up: #168a4a;
+  --down: #d83a2e;
+  --line: #eee7d8;
+  --hot: #fff4c2;
+  --soft: #f4efe3;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-line: var(--line);
+  --color-hot: var(--hot);
+  --color-soft: var(--soft);
+  --font-sans: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  --font-mono: var(--font-jbmono), "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--line);
+  }
+  html {
+    color-scheme: light;
+    background: var(--paper);
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 15px;
+    line-height: 1.45;
+    overflow-x: hidden;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  ::selection {
+    background: var(--accent);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  .wrap {
+    width: 100%;
+    max-width: 1320px;
+    margin-inline: auto;
+    padding-inline: 16px;
+  }
+  @media (min-width: 768px) {
+    .wrap {
+      padding-inline: 32px;
+    }
+  }
+  .display {
+    font-family: var(--font-sans);
+    font-weight: 900;
+    letter-spacing: -0.035em;
+    line-height: 0.95;
+  }
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+  .bignum {
+    font-family: var(--font-sans);
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding-inline: 18px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 15px;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .pill-accent {
+    background: var(--accent);
+    color: var(--ink);
+  }
+  .pill-accent:hover {
+    transform: translateY(-1px);
+  }
+  .pill-ink {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .pill-line {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+  }
+  .pill-line:hover {
+    border-color: #d9cfb8;
+  }
+  .hot-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding-inline: 6px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  .tab {
+    flex: none;
+    height: 34px;
+    padding-inline: 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .tab:hover {
+    color: var(--ink);
+  }
+  .tab[aria-selected="true"] {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .row {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    transition: border-color 0.12s ease;
+  }
+  .row:hover {
+    border-color: #ddd2bb;
+  }
+  .row-hot {
+    border-color: #f0dc8a;
+  }
+  .row-hot::before {
+    content: "";
+    position: absolute;
+    left: -1px;
+    top: -1px;
+    bottom: -1px;
+    width: 4px;
+    border-radius: 12px 0 0 12px;
+    background: var(--accent);
+  }
+  .tip {
+    position: relative;
+    cursor: help;
+    text-decoration: underline dotted var(--muted);
+    text-underline-offset: 3px;
+  }
+  .hero-art {
+    mix-blend-mode: multiply;
+    /* the render's backdrop is ~2 levels lighter than the page: lift it to white so multiply leaves the page colour */
+    filter: brightness(1.012);
+    -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 52%, transparent 96%);
+    mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 52%, transparent 96%);
+  }
+  .fade-up {
+    animation: fade-up 0.5s ease both;
+  }
+  .scroll-x {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+  .prose-tape p {
+    color: var(--muted);
+    margin-top: 10px;
+  }
+  .prose-tape h2 {
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    margin-top: 36px;
+  }
+  .prose-tape strong {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .prose-tape a {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    color: var(--ink);
+  }
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
