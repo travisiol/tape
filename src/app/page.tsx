@@ -2,12 +2,16 @@ import Image from "next/image";
 import { Board } from "@/components/Board";
 import { HeroPills } from "@/components/HeroPills";
 import { getBoard } from "@/lib/board";
+import { refreshAfterResponse } from "@/lib/refresh";
 import { SITE } from "@/lib/site-config";
 import hero from "../../public/hero-tape.png";
 
 export const dynamic = "force-dynamic";
+// Long enough for a refresh started by this visit to finish after the response.
+export const maxDuration = 300;
 
 export default function Home() {
+  refreshAfterResponse();
   const board = getBoard();
   return (
     <>

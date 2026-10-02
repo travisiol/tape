@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { db } from "./db";
 import { activeByVolume, creatorFees, graduatedCatalog, spotUsd, tokenLinks, type CatalogCoin } from "./pons";
 import { DAY, MINUTE } from "./metrics";
@@ -7,14 +8,16 @@ import { DAY, MINUTE } from "./metrics";
 export const REFRESH_MINUTES = Math.max(5, Number(process.env.TAPE_REFRESH_MINUTES) || 10);
 /** Coins whose fees are read each refresh: traded in the last 3 days, the biggest by market cap. */
 export const TRACK_WINDOW = 3 * DAY;
-export const TRACK_LIMIT = Math.max(20, Number(process.env.TAPE_TRACK_LIMIT) || 150);
+/** Serverless hosts stop a function soon after its response: a refresh there must be short. */
+const SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+export const TRACK_LIMIT = Math.max(20, Number(process.env.TAPE_TRACK_LIMIT) || (SERVERLESS ? 120 : 150));
 /** Live coins never read before, added per refresh until every live coin has been read once. */
-export const DISCOVER_PER_RUN = 60;
+export const DISCOVER_PER_RUN = SERVERLESS ? 20 : 60;
 /** Per-coin reads run a few at a time, each worker pausing between two reads. */
 const GAP_MS = 150;
 const READERS = 3;
 /** Launchpad pages read for links per refresh (each coin's links are re-read once a day). */
-const LINKS_PER_RUN = 25;
+const LINKS_PER_RUN = SERVERLESS ? 6 : 25;
 
 type State = { running: Promise<void> | null; timer: ReturnType<typeof setInterval> | null; lastStart: number };
 const g = globalThis as unknown as { __tapeRefresh?: State };
@@ -174,6 +177,16 @@ export function refresh(minGapMs: number = REFRESH_MINUTES * MINUTE): Promise<vo
     state.running = null;
   });
   return state.running;
+}
+
+/**
+ * Keep a due refresh running after the response is sent. On a long-lived server the background loop already does
+ * this; on serverless hosts the function would otherwise be frozen mid-refresh and the board would stay empty.
+ */
+export function refreshAfterResponse(): void {
+  after(async () => {
+    await refresh();
+  });
 }
 
 export function isRefreshing(): boolean {

@@ -1,7 +1,7 @@
 import "server-only";
 import { db, storageIsEphemeral } from "./db";
 import { DAY, HOUR, MIN_SPAN_DAY, classifyThemes, hotTokens, isNewThisWeek, lifetimeDaily, measureRate, toUsd, type Prices, type Snap } from "./metrics";
-import { isRefreshing, REFRESH_MINUTES, refresh } from "./refresh";
+import { isRefreshing, REFRESH_MINUTES } from "./refresh";
 import type { BoardData, BoardRow, CoinDetail } from "./types";
 
 interface CoinRecord {
@@ -88,8 +88,6 @@ function buildRow(coin: CoinRecord, snaps: Snap[], prices: Prices, now: number):
 /** The board: every tracked coin with its fee numbers, as of the last finished refresh. */
 export function getBoard(): BoardData {
   const d = db();
-  // A server that has no background loop (or just started) still gets its refresh from the first visit.
-  refresh();
   const good = lastGoodRun();
   const run = good ?? runInProgress();
   const now = Date.now();
