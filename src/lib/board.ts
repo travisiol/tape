@@ -1,7 +1,7 @@
 import "server-only";
 import { db, storageIsEphemeral } from "./db";
 import { DAY, HOUR, MIN_SPAN_DAY, classifyThemes, hotTokens, isNewThisWeek, lifetimeDaily, measureRate, toUsd, type Prices, type Snap } from "./metrics";
-import { isRefreshing, REFRESH_MINUTES } from "./refresh";
+import { isRefreshing, REFRESH_MINUTES, refresh } from "./refresh";
 import type { BoardData, BoardRow, CoinDetail } from "./types";
 
 interface CoinRecord {
@@ -37,6 +37,11 @@ function lastGoodRun(): RunRecord | null {
   return (db().prepare("SELECT * FROM runs WHERE finished_at IS NOT NULL AND error IS NULL ORDER BY at DESC LIMIT 1").get() as
     | RunRecord
     | undefined) ?? null;
+}
+
+/** The refresh in progress, used only while no refresh has ever finished: the first board fills in as coins are read. */
+function runInProgress(): RunRecord | null {
+  return (db().prepare("SELECT * FROM runs WHERE finished_at IS NULL ORDER BY at DESC LIMIT 1").get() as RunRecord | undefined) ?? null;
 }
 
 function pricesOf(run: RunRecord | null): Prices {
@@ -83,15 +88,18 @@ function buildRow(coin: CoinRecord, snaps: Snap[], prices: Prices, now: number):
 /** The board: every tracked coin with its fee numbers, as of the last finished refresh. */
 export function getBoard(): BoardData {
   const d = db();
-  const run = lastGoodRun();
+  // A server that has no background loop (or just started) still gets its refresh from the first visit.
+  refresh();
+  const good = lastGoodRun();
+  const run = good ?? runInProgress();
   const now = Date.now();
   const prices = pricesOf(run);
-  // Coins read in the last finished refresh.
+  // Coins read in the last finished refresh (or, before any has finished, read so far in the first one).
   const coins = d
     .prepare("SELECT c.* FROM coins c JOIN snapshots s ON s.token = c.token AND s.at = ? WHERE s.fees IS NOT NULL")
     .all(run?.at ?? -1) as unknown as CoinRecord[];
   const since = (run?.at ?? now) - DAY - HOUR;
-  const snapRows = d.prepare(`SELECT token, at, fees FROM snapshots WHERE at >= ? AND at IN (${GOOD_RUNS})`).all(since) as {
+  const snapRows = d.prepare(`SELECT token, at, fees FROM snapshots WHERE at >= ? AND (at IN (${GOOD_RUNS}) OR at = ?)`).all(since, good ? -1 : (run?.at ?? -1)) as {
     token: string;
     at: number;
     fees: number | null;
@@ -108,8 +116,9 @@ export function getBoard(): BoardData {
   const runs = (d.prepare("SELECT COUNT(*) AS n FROM runs WHERE finished_at IS NOT NULL AND error IS NULL").get() as { n: number }).n;
   return {
     rows,
-    refreshedAt: run?.finished_at ?? null,
+    refreshedAt: good?.finished_at ?? null,
     snapshots: runs,
+    progress: good || !run ? null : { read: coins.length, total: run.tracked ?? 0 },
     refreshing: isRefreshing(),
     refreshMinutes: REFRESH_MINUTES,
     ethUsd: run?.eth_usd ?? null,

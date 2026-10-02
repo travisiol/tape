@@ -32,6 +32,8 @@ export interface BoardData {
   rows: BoardRow[];
   refreshedAt: number | null;
   snapshots: number;
+  /** Set only during the very first refresh: coins read so far out of the coins to read. */
+  progress: { read: number; total: number } | null;
   refreshing: boolean;
   refreshMinutes: number;
   ethUsd: number | null;

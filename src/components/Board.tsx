@@ -45,7 +45,9 @@ export function Board({ initial }: { initial: BoardData }) {
   const wallet = useWallet();
   const router = useRouter();
 
-  // The board is re-read from TAPE's own snapshots every minute (never from upstream per visitor).
+  // The board is re-read from TAPE's own snapshots every minute (never from upstream per visitor),
+  // and every few seconds while the very first refresh is still filling it in.
+  const filling = data.refreshedAt === null;
   useEffect(() => {
     const id = setInterval(() => {
       fetch("/api/board")
@@ -54,9 +56,9 @@ export function Board({ initial }: { initial: BoardData }) {
           if (next) setData(next);
         })
         .catch(() => {});
-    }, 60_000);
+    }, filling ? 4_000 : 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, [filling]);
 
   const rows = data.rows;
   const hasHourly = rows.some((r) => r.fees1hUsd !== null);
@@ -109,7 +111,7 @@ export function Board({ initial }: { initial: BoardData }) {
         </div>
         <div className="flex items-center gap-3">
           <p className="hidden whitespace-nowrap text-[13px] text-muted lg:block" suppressHydrationWarning>
-            {data.refreshedAt ? <>Updated {ago(data.refreshedAt, now)}</> : data.refreshing ? "Reading the launchpad…" : "Waiting for the first refresh"}
+            {data.refreshedAt ? <>Updated {ago(data.refreshedAt, now)}</> : data.progress && data.progress.total > 0 ? `Reading fees… ${data.progress.read} of ${data.progress.total} coins` : "Reading the launchpad…"}
           </p>
           <label className="relative block w-full md:w-[240px]">
             <span className="sr-only">Search coins</span>
@@ -146,9 +148,9 @@ export function Board({ initial }: { initial: BoardData }) {
 
           {rows.length === 0 ? (
             <div className="card grid place-items-center px-6 py-16 text-center">
-              <p className="text-[17px] font-bold">{data.refreshing ? "Reading fees from the launchpad…" : "No coins yet."}</p>
+              <p className="text-[17px] font-bold">Reading fees from the launchpad…</p>
               <p className="mt-1 max-w-[420px] text-[14px] text-muted">
-                The first refresh reads every coin traded in the last three days, one at a time. This page fills in when it finishes.
+                The first read takes about half a minute. Coins appear here as they are read, biggest first.
               </p>
             </div>
           ) : visible.length === 0 ? (

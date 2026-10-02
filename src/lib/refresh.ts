@@ -10,8 +10,9 @@ export const TRACK_WINDOW = 3 * DAY;
 export const TRACK_LIMIT = Math.max(20, Number(process.env.TAPE_TRACK_LIMIT) || 150);
 /** Live coins never read before, added per refresh until every live coin has been read once. */
 export const DISCOVER_PER_RUN = 60;
-/** Pause between two per-coin reads. */
-const GAP_MS = 250;
+/** Per-coin reads run a few at a time, each worker pausing between two reads. */
+const GAP_MS = 150;
+const READERS = 3;
 /** Launchpad pages read for links per refresh (each coin's links are re-read once a day). */
 const LINKS_PER_RUN = 25;
 
@@ -104,20 +105,28 @@ async function runOnce(): Promise<void> {
 
     const snap = d.prepare("INSERT OR REPLACE INTO snapshots (token, at, market_cap, fees) VALUES (?, ?, ?, ?)");
     const byKey = new Map(all.map((c) => [c.token.toLowerCase(), c]));
+    // Known before the reads start, so a first refresh can be shown while it fills in.
+    d.prepare("UPDATE runs SET eth_usd = ?, btc_usd = ?, catalog = ?, tracked = ? WHERE at = ?").run(ethUsd, btcUsd, all.length, trackedSet.size, at);
     let measured = 0;
     let failed = 0;
-    for (const key of trackedSet) {
-      const coin = byKey.get(key);
-      let fees: number | null = null;
-      try {
-        fees = (await creatorFees(key)).earned;
-        measured++;
-      } catch {
-        failed++;
-      }
-      snap.run(key, at, typeof coin?.marketCapUsd === "number" ? coin.marketCapUsd : null, fees);
-      await sleep(GAP_MS);
-    }
+    // Biggest coins first, so the top of the board appears first.
+    const queue = [...trackedSet].sort((a, b) => (byKey.get(b)?.marketCapUsd ?? 0) - (byKey.get(a)?.marketCapUsd ?? 0));
+    await Promise.all(
+      Array.from({ length: READERS }, async () => {
+        for (let key = queue.shift(); key; key = queue.shift()) {
+          const coin = byKey.get(key);
+          let fees: number | null = null;
+          try {
+            fees = (await creatorFees(key)).earned;
+            measured++;
+          } catch {
+            failed++;
+          }
+          snap.run(key, at, typeof coin?.marketCapUsd === "number" ? coin.marketCapUsd : null, fees);
+          await sleep(GAP_MS);
+        }
+      }),
+    );
 
     const stale = d
       .prepare(
